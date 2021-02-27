@@ -1,10 +1,13 @@
-from Portfolio import Portfolio
+import Portfolio
+import pandas as pd
+import numpy as np
+import yfinance as yf
 import datetime as dt
 from pandas_datareader import data as pdr
 
+
 stocks = ["SBIN.NS"]
 for stock in stocks:
-    port = Portfolio(stock)
     # stock=input("Enter a stock ticker symbol: ")
     print(stock)
     startyear = 2019
@@ -28,8 +31,13 @@ for stock in stocks:
     for x in emasUsed:
         ema = x
         df["Ema_" + str(ema)] = round(df.iloc[:, 4].ewm(span=ema, adjust=False).mean(), 2)
-    num = 0
+
+    # df=df.iloc[60:]
+
     pos = 0
+    num = 0
+    percentchange = []
+
     for i in df.index:
         cmin = min(df["Ema_3"][i], df["Ema_5"][i], df["Ema_8"][i], df["Ema_10"][i], df["Ema_12"][i], df["Ema_15"][i], )
         cmax = max(df["Ema_30"][i], df["Ema_35"][i], df["Ema_40"][i], df["Ema_45"][i], df["Ema_50"][i],
@@ -37,33 +45,45 @@ for stock in stocks:
 
         close = df["Adj Close"][i]
 
-        if cmin > cmax:
+        if (cmin > cmax):
             # print("Red White Blue")
-            if port.check_pos() == 0 or pos == 0:
+            if (pos == 0):
                 bp = close
                 pos = 1
-                # break
-                port.buy(bp,i)
-                # print("Buying now at "+str(bp))
+            # print("Buying now at "+str(bp))
 
-        elif cmin < cmax:
+
+        elif (cmin < cmax):
             # print("Blue White Red")
-            if port.check_pos() == 1 and pos == 1:
+            if (pos == 1):
+                pos = 0
                 sp = close
-                # break
-                port.square_off(sp,i)
                 # print("Selling now at "+str(sp))
+                pc = (sp / bp - 1) * 100
+                percentchange.append(pc)
+        if (num == df["Adj Close"].count() - 1 and pos == 1):
+            pos = 0
+            sp = close
+            # print("Selling now at "+str(sp))
+            pc = (sp / bp - 1) * 100
+            percentchange.append(pc)
 
-        # if num == df["Adj Close"].count() - 1 and port.check_pos() == 1:
-        #     sp = close
-        #     port.square_off(sp=sp, time=i)
-        # num += 1
+        num += 1
 
-port.generate_dataframes()
-port.generate_results()
-port.get_percent_gain()
-import pandas as pd
-port.order_df
-port.percent_df
-t = pd.DataFrame(port.order_book)
-t.set_index('Time', inplace=True, drop=False)
+        '''[2.211636657021976,
+ 3.0113975429978623,
+ -2.400833000354763,
+ 0.22463724814858477,
+ 5.268076377752107,
+ 3.8051142336279042,
+ -0.11729427301431228,
+ 1.2953368387701447,
+ 14.77033007726629,
+ 0.8368828956117014,
+ 2.196495705119572,
+ -10.657413981852649,
+ 1.4754702729415037,
+ -15.32980224974323,
+ 20.97142392113096,
+ 2.1435209777305175,
+ 2.8932284730575963]'''
