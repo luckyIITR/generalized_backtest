@@ -59,10 +59,11 @@ class Combine:
             self.post_dict['%change'] = 0
 
             if len(self.order_book):
-                pc = (self.order_book[-1]['Price'] / bp - 1)
-                self.percent_change.append(pc * 100)
-                self.post_dict['%change'] = pc * 100
-                self.df_per_change.append({"Time": time, "%change": pc * 100})
+                if self.order_book[-1]['Time'].date() == time.date():
+                    pc = (self.order_book[-1]['Price'] / bp - 1)
+                    self.percent_change.append(pc * 100)
+                    self.post_dict['%change'] = pc * 100
+                    self.df_per_change.append({"Time": time, "%change": pc * 100})
 
             x = self.post_dict.copy()
             self.order_book.append(x)
@@ -75,10 +76,16 @@ class Combine:
             self.post_dict['Signal'] = "SELL"
             self.post_dict['Price'] = sp
             self.post_dict['Pos'] = -1
-            pc = (sp / self.order_book[-1]['Price'] - 1)
-            self.percent_change.append(pc * 100)
-            self.post_dict['%change'] = pc * 100
-            self.df_per_change.append({"Time": time, "%change": pc * 100})
+
+            if len(self.order_book):
+                if self.order_book[-1]['Time'].date() == time.date():
+                    pc = (sp / self.order_book[-1]['Price'] - 1)
+                    self.percent_change.append(pc * 100)
+                    self.post_dict['%change'] = pc * 100
+                    self.df_per_change.append({"Time": time, "%change": pc * 100})
+                else:
+                    self.post_dict['%change'] = 0
+                    self.df_per_change.append({"Time": time, "%change":0})
             x = self.post_dict.copy()
             self.order_book.append(x)
         else:
@@ -92,6 +99,7 @@ class Combine:
         y = self.order_book.copy()
         self.order_df = pd.DataFrame(y)
         self.order_df.set_index('Time', inplace=True, drop=True)
+        self.order_df.dropna(inplace=True)
         self.order_df['cumprod'] = ((self.order_df['%change'] / 100 + 1).cumprod() - 1) * 100
         z = self.df_per_change
         self.percent_df = pd.DataFrame(z)

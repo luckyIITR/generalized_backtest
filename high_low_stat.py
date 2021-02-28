@@ -3,17 +3,47 @@ import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from Portfolio2 import Combine, Store_Data
+import os
+import sqlite3
+import pandas as pd
+import datetime as dt
+
+dbd = r'F:\Database\1min_data'
+db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
 
 
 def get_intra_data(symbol):
-    daily = yf.download(tickers=symbol, interval="5m", period="20d")
-    daily.index = daily.index.tz_localize(None)
-    daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
-    return daily
+    symbol_check = {'3MINDIA': 'MINDIA',
+                    'BAJAJ-AUTO': 'BAJAJAUTO',
+                    'J&KBANK': 'JKBANK',
+                    'L&TFH': 'LTFH',
+                    'M&MFIN': 'MMFIN',
+                    'M&M': 'MM',
+                    'NAM-INDIA': 'NAMINDIA',
+                    'MCDOWELL-N': 'MCDOWELLN'}
+    symbol = symbol[:-3]
+    if symbol in list(symbol_check.keys()):
+        symbol = symbol_check[symbol]
+
+    df = pd.read_sql('''SELECT * FROM %s;''' % symbol, con=db)
+    df.set_index('time', inplace=True)
+    df.reset_index(inplace=True)
+    df['time'] = pd.to_datetime(df['time'])
+    df.set_index("time", drop=True, inplace=True)
+    df.index[0]
+    df.drop(["oi", 'Volume'], axis=1, inplace=True)
+    return df
+
+
+# def get_intra_data(symbol):
+#     daily = yf.download(tickers=symbol, interval="5m", period="20d")
+#     daily.index = daily.index.tz_localize(None)
+#     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
+#     return daily
 
 
 def get_dates(symbol):
-    daily = yf.download(tickers=symbol, interval="1d", period="20d")
+    daily = yf.download(tickers=symbol, interval="1d", start=dt.datetime(2020,1,31), end=dt.datetime(2020,11,25))
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
     return daily
@@ -58,19 +88,28 @@ def main(symbol):
     port = Combine(symbol)
     for date in dates:
         today = get_today(df, symbol, date)
+        num = 0
         for e in today.index:
             if e == today.index[0]: continue
             y1, y2, peaks1, peaks2 = get_peaks(today.loc[:e, ])
             if len(peaks1) == 0 or len(peaks2) == 0: continue
             if today.loc[e, 'High'] > y1[peaks1[-1]] and (port.check_pos() == 0 or port.check_pos() == -1):
                 port.buy(y1[peaks1[-1]], e)
-
-            elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and (port.check_pos() == 1):
+                num = num + 1
+            elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and (port.check_pos() == 0 or port.check_pos() == 1):
                 port.sell(y2[peaks2[-1]] * -1, e)
+                num = num + 1
+            if e.time() == dt.datetime(2020,2,2,15,25).time() and num%2 == 1:
+                if port.check_pos() == 1:
+                    port.sell(today.loc[e,'Open'], e)
+                elif port.check_pos() == -1:
+                    port.buy(today.loc[e,'Open'], e)
+
 
     port.generate_dataframes()
     store_result.append_data(port.generate_results())
     store_result.day_wise_result(port.get_day_wise())
+
 
 store_result = Store_Data()
 
@@ -123,7 +162,7 @@ tickers = ['ADANIPORTS.NS',
            'ULTRACEMCO.NS',
            'UPL.NS',
            'WIPRO.NS']
-tickers = tickers[:10]
+# tickers = tickers[:10]
 for symbol in tickers:
     main(symbol)
 
