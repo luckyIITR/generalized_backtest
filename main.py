@@ -1,14 +1,14 @@
-from Portfolio import Portfolio
+from Portfolio import Combine
 import datetime as dt
 from pandas_datareader import data as pdr
 
 stocks = ["SBIN.NS"]
 for stock in stocks:
-    port = Portfolio(stock)
+    port = Combine(stock)
     # stock=input("Enter a stock ticker symbol: ")
     print(stock)
-    startyear = 2019
-    endyear = 2020
+    startyear = 2018
+    endyear = 2021
     startmonth = 1
     startday = 1
 
@@ -29,7 +29,7 @@ for stock in stocks:
         ema = x
         df["Ema_" + str(ema)] = round(df.iloc[:, 4].ewm(span=ema, adjust=False).mean(), 2)
     num = 0
-    pos = 0
+    # pos = 0
     for i in df.index:
         cmin = min(df["Ema_3"][i], df["Ema_5"][i], df["Ema_8"][i], df["Ema_10"][i], df["Ema_12"][i], df["Ema_15"][i], )
         cmax = max(df["Ema_30"][i], df["Ema_35"][i], df["Ema_40"][i], df["Ema_45"][i], df["Ema_50"][i],
@@ -39,31 +39,27 @@ for stock in stocks:
 
         if cmin > cmax:
             # print("Red White Blue")
-            if port.check_pos() == 0 or pos == 0:
+            if port.check_pos() == -1 or port.check_pos() == 0:
                 bp = close
-                pos = 1
                 # break
                 port.buy(bp,i)
                 # print("Buying now at "+str(bp))
 
         elif cmin < cmax:
             # print("Blue White Red")
-            if port.check_pos() == 1 and pos == 1:
+            if port.check_pos() == 1:
                 sp = close
                 # break
-                port.square_off(sp,i)
+                port.sell(sp,i)
                 # print("Selling now at "+str(sp))
 
-        # if num == df["Adj Close"].count() - 1 and port.check_pos() == 1:
+        # if num == df["Adj Close"].count() - 1 and port.check_pos() == -1:
         #     sp = close
-        #     port.square_off(sp=sp, time=i)
+        #     port.square_off(sp, time=i)
         # num += 1
 
 port.generate_dataframes()
 port.generate_results()
 port.get_percent_gain()
-import pandas as pd
-port.order_df
-port.percent_df
-t = pd.DataFrame(port.order_book)
-t.set_index('Time', inplace=True, drop=False)
+port.plot_result()
+port.generate_csv_report()
