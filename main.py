@@ -34,23 +34,20 @@ for stock in stocks:
         cmin = min(df["Ema_3"][i], df["Ema_5"][i], df["Ema_8"][i], df["Ema_10"][i], df["Ema_12"][i], df["Ema_15"][i], )
         cmax = max(df["Ema_30"][i], df["Ema_35"][i], df["Ema_40"][i], df["Ema_45"][i], df["Ema_50"][i],
                    df["Ema_60"][i], )
-
-        close = df["Adj Close"][i]
-
         if cmin > cmax:
             # print("Red White Blue")
             if port.check_pos() == -1 or port.check_pos() == 0:
-                bp = close
+
                 # break
-                port.buy(bp,i)
+                port.buy(df["Adj Close"][i],i)
                 # print("Buying now at "+str(bp))
 
         elif cmin < cmax:
             # print("Blue White Red")
             if port.check_pos() == 1:
-                sp = close
+
                 # break
-                port.sell(sp,i)
+                port.sell(df["Adj Close"][i],i)
                 # print("Selling now at "+str(sp))
 
         # if num == df["Adj Close"].count() - 1 and port.check_pos() == -1:
@@ -58,8 +55,3 @@ for stock in stocks:
         #     port.square_off(sp, time=i)
         # num += 1
 
-port.generate_dataframes()
-port.generate_results()
-port.get_percent_gain()
-port.plot_result()
-port.generate_csv_report()

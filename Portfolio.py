@@ -44,7 +44,7 @@ class BuyPortfolio:
             x = self.post_dict.copy()
             self.order_book.append(x)
         else:
-            print("You already have SELL positions")
+            print("You already have Squared Off positions")
 
     def check_pos(self):
         return self.post_dict['Pos']
@@ -72,8 +72,11 @@ class BuyPortfolio:
                                                    dtype=None, columns=None)
             self.day_wise.set_index("Time", drop=True, inplace=True)
             self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
+        else:
+            print("First close open positions")
 
     def generate_results(self):
+        self.generate_dataframes()
         gains = 0
         ng = 0
         losses = 0
@@ -341,28 +344,27 @@ class Combine:
         return self.post_dict['Pos']
 
     def generate_dataframes(self):
-        if self.post_dict['Pos'] == -1:
-            # convert to dataframes
-            y = self.order_book.copy()
-            self.order_df = pd.DataFrame(y)
-            self.order_df.set_index('Time', inplace=True, drop=True)
-            self.order_df['cumprod'] = ((self.order_df['%change']/100 + 1).cumprod() - 1) * 100
-            z = self.df_per_change
-            self.percent_df = pd.DataFrame(z)
-            self.percent_df.set_index('Time', inplace=True, drop=True)
-            self.percent_df['cumprod'] = ((self.percent_df['%change'] / 100 + 1).cumprod() - 1) * 100
+        # convert to dataframes
+        y = self.order_book.copy()
+        self.order_df = pd.DataFrame(y)
+        self.order_df.set_index('Time', inplace=True, drop=True)
+        self.order_df['cumprod'] = ((self.order_df['%change']/100 + 1).cumprod() - 1) * 100
+        z = self.df_per_change
+        self.percent_df = pd.DataFrame(z)
+        self.percent_df.set_index('Time', inplace=True, drop=True)
+        self.percent_df['cumprod'] = ((self.percent_df['%change'] / 100 + 1).cumprod() - 1) * 100
 
-            p_l = []
-            m = self.percent_df.index.date
-            dates = list(set(m))
-            dates = sorted(dates)
-            for date in dates:
-                t = self.percent_df[self.percent_df.index.date == date].sum()[0]
-                p_l.append(t)
-            self.day_wise = pd.DataFrame.from_dict({"Time": dates, "%change": p_l}, orient='columns',
-                                                   dtype=None, columns=None)
-            self.day_wise.set_index("Time", drop=True, inplace=True)
-            self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
+        p_l = []
+        m = self.percent_df.index.date
+        dates = list(set(m))
+        dates = sorted(dates)
+        for date in dates:
+            t = self.percent_df[self.percent_df.index.date == date].sum()[0]
+            p_l.append(t)
+        self.day_wise = pd.DataFrame.from_dict({"Time": dates, "%change": p_l}, orient='columns',
+                                               dtype=None, columns=None)
+        self.day_wise.set_index("Time", drop=True, inplace=True)
+        self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
 
     def generate_results(self):
         gains = 0
@@ -420,8 +422,7 @@ class Combine:
         # plt.show()
 
     def plot_day_wise(self):
-        plt.plot(self.day_wise)
-        plt.show()
+        plt.plot(self.day_wise['cumprod'])
 
     def get_percent_gain(self):
         return self.percent_df.iloc[-1, -1]
