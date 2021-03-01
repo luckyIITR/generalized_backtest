@@ -3,47 +3,48 @@ import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from Portfolio2 import Combine, Store_Data
-import os
-import sqlite3
-import pandas as pd
+# import os
+# import sqlite3
+# import pandas as pd
 import datetime as dt
+from finta import TA
+plt.ioff()
+# dbd = r'F:\Database\1min_data'
+# db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
 
-dbd = r'F:\Database\1min_data'
-db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
+#
+# def get_intra_data(symbol):
+#     symbol_check = {'3MINDIA': 'MINDIA',
+#                     'BAJAJ-AUTO': 'BAJAJAUTO',
+#                     'J&KBANK': 'JKBANK',
+#                     'L&TFH': 'LTFH',
+#                     'M&MFIN': 'MMFIN',
+#                     'M&M': 'MM',
+#                     'NAM-INDIA': 'NAMINDIA',
+#                     'MCDOWELL-N': 'MCDOWELLN'}
+#     symbol = symbol[:-3]
+#     if symbol in list(symbol_check.keys()):
+#         symbol = symbol_check[symbol]
+#
+#     df = pd.read_sql('''SELECT * FROM %s;''' % symbol, con=db)
+#     df.set_index('time', inplace=True)
+#     df.reset_index(inplace=True)
+#     df['time'] = pd.to_datetime(df['time'])
+#     df.set_index("time", drop=True, inplace=True)
+#     df.index[0]
+#     df.drop(["oi", 'Volume'], axis=1, inplace=True)
+#     return df
 
 
 def get_intra_data(symbol):
-    symbol_check = {'3MINDIA': 'MINDIA',
-                    'BAJAJ-AUTO': 'BAJAJAUTO',
-                    'J&KBANK': 'JKBANK',
-                    'L&TFH': 'LTFH',
-                    'M&MFIN': 'MMFIN',
-                    'M&M': 'MM',
-                    'NAM-INDIA': 'NAMINDIA',
-                    'MCDOWELL-N': 'MCDOWELLN'}
-    symbol = symbol[:-3]
-    if symbol in list(symbol_check.keys()):
-        symbol = symbol_check[symbol]
-
-    df = pd.read_sql('''SELECT * FROM %s;''' % symbol, con=db)
-    df.set_index('time', inplace=True)
-    df.reset_index(inplace=True)
-    df['time'] = pd.to_datetime(df['time'])
-    df.set_index("time", drop=True, inplace=True)
-    df.index[0]
-    df.drop(["oi", 'Volume'], axis=1, inplace=True)
-    return df
-
-
-# def get_intra_data(symbol):
-#     daily = yf.download(tickers=symbol, interval="5m", period="20d")
-#     daily.index = daily.index.tz_localize(None)
-#     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
-#     return daily
+    daily = yf.download(tickers=symbol, interval="5m", period="30d")
+    daily.index = daily.index.tz_localize(None)
+    daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
+    return daily
 
 
 def get_dates(symbol):
-    daily = yf.download(tickers=symbol, interval="1d", start=dt.datetime(2020,1,31), end=dt.datetime(2020,11,25))
+    daily = yf.download(tickers=symbol, interval="1d", period="30d")
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
     return daily
@@ -110,6 +111,14 @@ def main(symbol):
     store_result.append_data(port.generate_results())
     store_result.day_wise_result(port.get_day_wise())
 
+    fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
+    plt.plot(port.percent_df['cumprod'],'bo-',linewidth=2.0)
+    plt.xticks(rotation=45)
+    plt.xlabel('Date-time',fontsize=18)
+    plt.ylabel('Cumulative % change',fontsize=18)
+    plt.title(f'{symbol[:-3]}',fontsize=18)
+    plt.savefig(f'./plot/{symbol[:-3]}.jpeg')
+    plt.close(fig)
 
 store_result = Store_Data()
 
@@ -162,9 +171,10 @@ tickers = ['ADANIPORTS.NS',
            'ULTRACEMCO.NS',
            'UPL.NS',
            'WIPRO.NS']
-# tickers = tickers[:10]
+# tickers = tickers[10:]
 for symbol in tickers:
     main(symbol)
 
 result, day_wise = store_result.gen_pd()  ## dont run it twice
 store_result.get_csv()
+
