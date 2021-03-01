@@ -7,6 +7,7 @@ from Portfolio2 import Combine, Store_Data
 # import sqlite3
 # import pandas as pd
 import datetime as dt
+plt.ioff()
 #
 # dbd = r'F:\Database\1min_data'
 # db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
