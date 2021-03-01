@@ -2,7 +2,7 @@ import numpy as np
 import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
-from Portfolio2 import BuyPortfolio, Store_Data
+from Portfolio2 import SellPortfolio, Store_Data
 # import os
 # import sqlite3
 import pandas as pd
@@ -96,12 +96,12 @@ def main(symbol):
     df_hour['ema8'] = TA.EMA(df_hour, period=8)
     df_hour = df_hour.iloc[21:, :].copy()
     df_hour['signal'] = [
-        1 if df_hour.loc[e, 'ema8'] - df_hour.loc[e, 'ema21'] > 0 and df_hour.loc[e, 'Close'] > df_hour.loc[
+        1 if df_hour.loc[e, 'ema8'] - df_hour.loc[e, 'ema21'] < 0 and df_hour.loc[e, 'Close'] < df_hour.loc[
             e, 'ema8'] else 0 for e in df_hour.index]
     df_5min = pd.concat([df_5min, df_hour['signal']], axis=1)
     df_5min = df_5min.ffill()
     df_5min.dropna(inplace=True)
-    port = BuyPortfolio(symbol)
+    port = SellPortfolio(symbol)
 
     dates = sorted(list(set(df_hour.index.date)))
     for date in dates:
@@ -113,14 +113,16 @@ def main(symbol):
             if len(peaks1) == 0 or len(peaks2) == 0:
                 continue
 
-            if today.loc[e, 'signal'] == 1 and today.loc[e, 'High'] > y1[peaks1[-1]] and port.check_pos() == 0:
-                port.buy(y1[peaks1[-1]], e)
+            if today.loc[e, 'signal'] == 1 and today.loc[e, 'Low'] < y2[peaks2[-1]]*-1 and port.check_pos() == 0:
+                port.sell(y2[peaks2[-1]]*-1, e)
 
-            elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and port.check_pos() == 1:
-                port.square_off(y2[peaks2[-1]] * -1, e)
+            elif today.loc[e, 'High'] > y1[peaks1[-1]] and port.check_pos() == -1:
+                port.square_off(y1[peaks1[-1]], e)
 
-            if port.check_pos() == 1 and e.time() == dt.datetime(2020, 2, 2, 15, 25).time():
+
+            if port.check_pos() == -1 and e.time() == dt.datetime(2020, 2, 2, 15, 25).time():
                 port.square_off(today.loc[e, 'Open'], e)
+
     port.generate_dataframes()
     store_result.append_data(port.generate_results())
     store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
@@ -186,7 +188,7 @@ tickers = ['ADANIPORTS.NS',
            'ULTRACEMCO.NS',
            'UPL.NS',
            'WIPRO.NS']
-# tickers = tickers[:10]
+# tickers = tickers[:1]
 for symbol in tickers:
     main(symbol)
 

@@ -400,7 +400,7 @@ class SellPortfolio:
             self.post_dict['Signal'] = "BUY"
             self.post_dict['Price'] = bp
             self.post_dict['Pos'] = 0
-            pc = (bp / self.order_book[-1]['Price'] - 1)
+            pc = (self.order_book[-1]['Price'] / bp - 1)
             self.percent_change.append(pc * 100)
             self.post_dict['%change'] = pc * 100
             self.df_per_change.append({"Time": time, "%change": pc * 100})
@@ -434,7 +434,7 @@ class SellPortfolio:
             self.day_wise = pd.DataFrame.from_dict({"Time": dates, "%change": p_l}, orient='columns',
                                                    dtype=None, columns=None)
             self.day_wise.set_index("Time", drop=True, inplace=True)
-            self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
+            # self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
         else:
             print("Positions  Still open")
 

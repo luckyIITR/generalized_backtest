@@ -1,141 +1,159 @@
-import Portfolio
-import pandas as pd
-import numpy as np
-import yfinance as yf
-import datetime as dt
-from pandas_datareader import data as pdr
 
 
-stocks = ["SBIN.NS"]
-for stock in stocks:
-    # stock=input("Enter a stock ticker symbol: ")
-    print(stock)
-    startyear = 2018
-    endyear = 2021
-    startmonth = 1
-    startday = 1
-    start = dt.datetime(startyear, startmonth, startday)
+class BuyPortfolio:
 
-    now = dt.datetime(endyear, startmonth, startday)
+    def __init__(self, symbol):
+        self.symbol = symbol[:-3]
+        self.post_dict = {}
+        self.percent_change = []
+        self.order_book = []
+        self.df_per_change = []
+        self.post_dict['Time'] = None
+        self.post_dict['Signal'] = ""
+        self.post_dict['Price'] = None
+        self.post_dict['Pos'] = 0
+        self.post_dict['%change'] = 0
+        self.order_df = pd.DataFrame()
+        self.percent_df = pd.DataFrame()
+        self.day_wise = pd.DataFrame()
+        self.result = {}
 
-    df = pdr.get_data_yahoo(stock, start, now)
+    def buy(self, bp, time):
+        if self.post_dict['Signal'] != 'BUY':
+            self.post_dict['Time'] = time
+            self.post_dict['Signal'] = "BUY"
+            self.post_dict['Price'] = bp
+            self.post_dict['Pos'] = 1
+            self.post_dict['%change'] = 0
+            x = self.post_dict.copy()
+            self.order_book.append(x)
+        else:
+            print("You already have BUY positions")
 
-    # ma=50
+    def square_off(self, sp, time):
+        if self.post_dict['Signal'] != 'SELL':
+            self.post_dict['Time'] = time
+            self.post_dict['Signal'] = "SELL"
+            self.post_dict['Price'] = sp
+            self.post_dict['Pos'] = 0
+            pc = (sp / self.order_book[-1]['Price'] - 1)
+            self.percent_change.append(pc * 100)
+            self.post_dict['%change'] = pc * 100
+            self.df_per_change.append({"Time": time, "%change": pc * 100})
+            x = self.post_dict.copy()
+            self.order_book.append(x)
+        else:
+            print("You already have Squared Off positions")
 
-    # smaString="Sma_"+str(ma)
+    def check_pos(self):
+        return self.post_dict['Pos']
 
-    # df[smaString]=df.iloc[:,4].rolling(window=ma).mean()
+    def generate_dataframes(self):
+        if self.post_dict['Pos'] == 0:
+            # convert to dataframes
+            y = self.order_book.copy()
+            self.order_df = pd.DataFrame(y)
+            self.order_df.set_index('Time', inplace=True, drop=True)
 
-    emasUsed = [3, 5, 8, 10, 12, 15, 30, 35, 40, 45, 50, 60]
-    for x in emasUsed:
-        ema = x
-        df["Ema_" + str(ema)] = round(df.iloc[:, 4].ewm(span=ema, adjust=False).mean(), 2)
+            z = self.df_per_change
+            self.percent_df = pd.DataFrame(z)
+            self.percent_df.set_index('Time', inplace=True, drop=True)
+            self.percent_df['cumprod'] = ((self.percent_df['%change'] / 100 + 1).cumprod() - 1) * 100
 
-    # df=df.iloc[60:]
+            p_l = []
+            m = self.percent_df.index.date
+            dates = list(set(m))
+            dates = sorted(dates)
+            for date in dates:
+                t = self.percent_df[self.percent_df.index.date == date].sum()[0].copy()
+                p_l.append(t)
+            self.day_wise = pd.DataFrame.from_dict({"Time": dates, "%change": p_l}, orient='columns',
+                                                   dtype=None, columns=None)
+            self.day_wise.set_index("Time", drop=True, inplace=True)
+            # self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
+        else:
+            print("First close open positions")
 
-    pos = 0
-    num = 0
-    percentchange = []
+    def generate_results(self):
+        self.generate_dataframes()
+        gains = 0
+        ng = 0
+        losses = 0
+        nl = 0
+        totalR = 1
 
-    for i in df.index:
-        cmin = min(df["Ema_3"][i], df["Ema_5"][i], df["Ema_8"][i], df["Ema_10"][i], df["Ema_12"][i], df["Ema_15"][i], )
-        cmax = max(df["Ema_30"][i], df["Ema_35"][i], df["Ema_40"][i], df["Ema_45"][i], df["Ema_50"][i],
-                   df["Ema_60"][i], )
+        for i in self.percent_change:
+            if i > 0:
+                gains += i
+                ng += 1
+            else:
+                losses += i
+                nl += 1
+            totalR = totalR * ((i / 100) + 1)
 
-        close = df["Adj Close"][i]
+        totalR = round((totalR - 1) * 100, 2)
 
-        if (cmin > cmax):
-            # print("Red White Blue")
-            if (pos == 0):
-                bp = close
-                pos = 1
-            # print("Buying now at "+str(bp))
+        if ng > 0:
+            avgGain = gains / ng
+            maxR = str(max(self.percent_change))
+        else:
+            avgGain = 0
+            maxR = "undefined"
 
+        if nl > 0:
+            avgLoss = losses / nl
+            maxL = str(min(self.percent_change))
+            ratio = str(-avgGain / avgLoss)
+        else:
+            avgLoss = 0
+            maxL = "undefined"
+            ratio = "inf"
 
-        elif (cmin < cmax):
-            # print("Blue White Red")
-            if (pos == 1):
-                pos = 0
-                sp = close
-                # print("Selling now at "+str(sp))
-                pc = (sp / bp - 1) * 100
-                percentchange.append(pc)
-        if (num == df["Adj Close"].count() - 1 and pos == 1):
-            pos = 0
-            sp = close
-            # print("Selling now at "+str(sp))
-            pc = (sp / bp - 1) * 100
-            percentchange.append(pc)
+        if ng > 0 or nl > 0:
+            battingAvg = ng / (ng + nl)
+        else:
+            battingAvg = 0
+        print()
+        print("###############################################################")
+        print("Results for " + self.symbol)
+        print("Batting Avg: " + str(battingAvg))
+        print("Gain/loss ratio: " + ratio)
+        print("Average Gain: " + str(avgGain))
+        print("Average Loss: " + str(avgLoss))
+        print("Max Return: " + maxR)
+        print("Max Loss: " + maxL)
+        print("Total return over " + str(ng + nl) + " trades: " + str(totalR) + "%")
+        print("###############################################################")
+        print()
+        self.result["symbol"] = self.symbol
+        self.result['Batting Avg'] = battingAvg
+        self.result['Gain/loss ratio'] = ratio
+        self.result['Average Gain'] = avgGain
+        self.result['Average Loss'] = avgLoss
+        self.result['NOT'] = ng + nl
+        self.result['Max Return'] = maxR
+        self.result['Max Loss'] = maxL
+        self.result['Total return'] = totalR
+        return self.result.copy()
 
-        num += 1
-print(percentchange)
+    def get_day_wise(self):
+        return self.day_wise
 
-gains = 0
-ng = 0
-losses = 0
-nl = 0
-totalR = 1
+    def plot_result(self):
+        plt.plot(self.percent_df['cumprod'])
+        # plt.show()
 
-for i in percentchange:
-    if (i > 0):
-        gains += i
-        ng += 1
-    else:
-        losses += i
-        nl += 1
-    totalR = totalR * ((i / 100) + 1)
+    def plot_day_wise(self):
+        plt.plot(self.day_wise)
+        plt.show()
 
-totalR = round((totalR - 1) * 100, 2)
+    def get_percent_gain(self):
+        return self.percent_df.iloc[-1, -1]
 
-if (ng > 0):
-    avgGain = gains / ng
-    maxR = str(max(percentchange))
-else:
-    avgGain = 0
-    maxR = "undefined"
+    def generate_csv_report(self):
+        writer = pd.ExcelWriter(self.symbol+".xlsx", engine='xlsxwriter')
+        self.order_df.to_excel(writer, sheet_name='Order_book')
+        self.percent_df.to_excel(writer, sheet_name='%change')
+        self.day_wise.to_excel(writer, sheet_name='Day_wise')
+        writer.save()
 
-if (nl > 0):
-    avgLoss = losses / nl
-    maxL = str(min(percentchange))
-    ratio = str(-avgGain / avgLoss)
-else:
-    avgLoss = 0
-    maxL = "undefined"
-    ratio = "inf"
-
-if (ng > 0 or nl > 0):
-    battingAvg = ng / (ng + nl)
-else:
-    battingAvg = 0
-
-print()
-print("Results for " + stock + " going back to " + str(df.index[0]) + ", Sample size: " + str(
-    ng + nl) + " trades")
-print("EMAs used: " + str(emasUsed))
-print("Batting Avg: " + str(battingAvg))
-print("Gain/loss ratio: " + ratio)
-print("Average Gain: " + str(avgGain))
-print("Average Loss: " + str(avgLoss))
-print("Max Return: " + maxR)
-print("Max Loss: " + maxL)
-print("Total return over " + str(ng + nl) + " trades: " + str(totalR) + "%")
-# print("Example return Simulating "+str(n)+ " trades: "+ str(nReturn)+"%" )
-print()
-
-'''[2.211636657021976,
-3.0113975429978623,
--2.400833000354763,
-0.22463724814858477,
-5.268076377752107,
-3.8051142336279042,
--0.11729427301431228,
-1.2953368387701447,
-14.77033007726629,
-0.8368828956117014,
-2.196495705119572,
--10.657413981852649,
-1.4754702729415037,
--15.32980224974323,
-20.97142392113096,
-2.1435209777305175,
- 2.8932284730575963]'''
