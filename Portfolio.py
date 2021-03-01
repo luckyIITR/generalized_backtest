@@ -18,6 +18,7 @@ class BuyPortfolio:
         self.order_df = pd.DataFrame()
         self.percent_df = pd.DataFrame()
         self.day_wise = pd.DataFrame()
+        self.result = {}
 
     def buy(self, bp, time):
         if self.post_dict['Signal'] != 'BUY':
@@ -126,6 +127,16 @@ class BuyPortfolio:
         print("Total return over " + str(ng + nl) + " trades: " + str(totalR) + "%")
         print("###############################################################")
         print()
+        self.result["symbol"] = self.symbol
+        self.result['Batting Avg'] = battingAvg
+        self.result['Gain/loss ratio'] = ratio
+        self.result['Average Gain'] = avgGain
+        self.result['Average Loss'] = avgLoss
+        self.result['NOT'] = ng + nl
+        self.result['Max Return'] = maxR
+        self.result['Max Loss'] = maxL
+        self.result['Total return'] = totalR
+        return self.result.copy()
 
     def plot_result(self):
         plt.plot(self.percent_df['cumprod'])
@@ -162,6 +173,7 @@ class SellPortfolio:
         self.order_df = pd.DataFrame()
         self.percent_df = pd.DataFrame()
         self.day_wise = pd.DataFrame()
+        self.result = {}
 
     def sell(self, sp, time):
         if self.post_dict['Signal'] != 'SELL':
@@ -269,6 +281,16 @@ class SellPortfolio:
         print("Total return over " + str(ng + nl) + " trades: " + str(totalR) + "%")
         print("###############################################################")
         print()
+        self.result["symbol"] = self.symbol
+        self.result['Batting Avg'] = battingAvg
+        self.result['Gain/loss ratio'] = ratio
+        self.result['Average Gain'] = avgGain
+        self.result['Average Loss'] = avgLoss
+        self.result['NOT'] = ng + nl
+        self.result['Max Return'] = maxR
+        self.result['Max Loss'] = maxL
+        self.result['Total return'] = totalR
+        return self.result.copy()
 
     def plot_result(self):
         plt.plot(self.percent_df['cumprod'])
@@ -305,6 +327,7 @@ class Combine:
         self.order_df = pd.DataFrame()
         self.percent_df = pd.DataFrame()
         self.day_wise = pd.DataFrame()
+        self.result = {}
 
     def buy(self, bp, time):
         if self.post_dict['Signal'] != 'BUY':
@@ -416,6 +439,16 @@ class Combine:
         print("Total return over " + str(ng + nl) + " trades: " + str(totalR) + "%")
         print("###############################################################")
         print()
+        self.result["symbol"] = self.symbol
+        self.result['Batting Avg'] = battingAvg
+        self.result['Gain/loss ratio'] = ratio
+        self.result['Average Gain'] = avgGain
+        self.result['Average Loss'] = avgLoss
+        self.result['NOT'] = ng + nl
+        self.result['Max Return'] = maxR
+        self.result['Max Loss'] = maxL
+        self.result['Total return'] = totalR
+        return self.result.copy()
 
     def plot_result(self):
         plt.plot(self.percent_df['cumprod'])
