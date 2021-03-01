@@ -7,6 +7,7 @@ from Portfolio2 import Combine, Store_Data
 # import sqlite3
 # import pandas as pd
 import datetime as dt
+from finta import TA
 #
 # dbd = r'F:\Database\1min_data'
 # db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
@@ -35,15 +36,15 @@ import datetime as dt
 #     return df
 
 
-def get_intra_data(symbol):
-    daily = yf.download(tickers=symbol, interval="5m", period="20d")
+def get_intra_data(symbol,period):
+    daily = yf.download(tickers=symbol, interval="5m", period=str(period)+"d")
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
     return daily
 
 
-def get_dates(symbol):
-    daily = yf.download(tickers=symbol, interval="1d", period="20d")
+def get_dates(symbol,period):
+    daily = yf.download(tickers=symbol, interval="1d", period=str(period)+"d")
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
     return daily
@@ -83,28 +84,38 @@ def get_today(df, symbol, date):
 
 
 def main(symbol):
-    df = get_intra_data(symbol)
-    t = get_dates(symbol)
+    atr_period = 14
+    backtest_period = 30
+    df = get_intra_data(symbol,backtest_period)
+    t = get_dates(symbol,backtest_period+atr_period)
+
+    t['ATR'] = TA.ATR(t,14)
+    t['pH'] = t['High'].shift(1)
+    t['pL'] = t['Low'].shift(1)
+    t['pATR'] = t['ATR'].shift(1)
+
+    t.dropna(inplace=True)
     dates = t.index
     port = Combine(symbol)
     for date in dates:
-        today = get_today(df, symbol, date.date())
-        num = 0
-        for e in today.index:
-            if e == today.index[0]: continue
-            y1, y2, peaks1, peaks2 = get_peaks(today.loc[:e, ])
-            if len(peaks1) == 0 or len(peaks2) == 0: continue
-            if today.loc[e, 'High'] > y1[peaks1[-1]] and (port.check_pos() == 0 or port.check_pos() == -1):
-                port.buy(y1[peaks1[-1]], e)
-                num = num + 1
-            elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and (port.check_pos() == 0 or port.check_pos() == 1):
-                port.sell(y2[peaks2[-1]] * -1, e)
-                num = num + 1
-            if e.time() == dt.datetime(2020,2,2,15,25).time() and num%2 == 1:
-                if port.check_pos() == 1:
-                    port.sell(today.loc[e,'Open'], e)
-                elif port.check_pos() == -1:
-                    port.buy(today.loc[e,'Open'], e)
+        if t.loc[date,'pH'] - t.loc[date,'pL'] > t.loc[date,'pATR'] :
+            today = get_today(df, symbol, date.date())
+            num = 0
+            for e in today.index:
+                if e == today.index[0]: continue
+                y1, y2, peaks1, peaks2 = get_peaks(today.loc[:e, ])
+                if len(peaks1) == 0 or len(peaks2) == 0: continue
+                if today.loc[e, 'High'] > y1[peaks1[-1]] and (port.check_pos() == 0 or port.check_pos() == -1):
+                    port.buy(y1[peaks1[-1]], e)
+                    num = num + 1
+                elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and (port.check_pos() == 0 or port.check_pos() == 1):
+                    port.sell(y2[peaks2[-1]] * -1, e)
+                    num = num + 1
+                if e.time() == dt.datetime(2020,2,2,15,25).time() and num%2 == 1:
+                    if port.check_pos() == 1:
+                        port.sell(today.loc[e,'Open'], e)
+                    elif port.check_pos() == -1:
+                        port.buy(today.loc[e,'Open'], e)
 
 
     port.generate_dataframes()
