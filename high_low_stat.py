@@ -122,6 +122,13 @@ def main(symbol):
     store_result.append_data(port.generate_results())
     store_result.day_wise_result(port.get_day_wise())
 
+    fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
+    plt.plot(port.percent_df['cumprod'],'bo-')
+    plt.xticks(rotation=45)
+    plt.xlabel('Date-time', fontsize=18)
+    plt.ylabel('Cumulative % change', fontsize=16)
+    plt.savefig(f"./plot/{symbol[:-3]}.jpeg")
+    plt.close(fig)
 
 store_result = Store_Data()
 
