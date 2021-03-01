@@ -3,8 +3,8 @@ import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from Portfolio2 import BuyPortfolio, Store_Data
-# import os
-# import sqlite3
+import os
+import sqlite3
 import pandas as pd
 import datetime as dt
 from finta import TA
@@ -13,45 +13,73 @@ plt.ioff()
 
 
 #
-# dbd = r'F:\Database\1min_data'
-# db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
+
 #
 #
-# def get_intra_data(symbol):
-#     symbol_check = {'3MINDIA': 'MINDIA',
-#                     'BAJAJ-AUTO': 'BAJAJAUTO',
-#                     'J&KBANK': 'JKBANK',
-#                     'L&TFH': 'LTFH',
-#                     'M&MFIN': 'MMFIN',
-#                     'M&M': 'MM',
-#                     'NAM-INDIA': 'NAMINDIA',
-#                     'MCDOWELL-N': 'MCDOWELLN'}
-#     symbol = symbol[:-3]
-#     if symbol in list(symbol_check.keys()):
-#         symbol = symbol_check[symbol]
+def get_intra_data(symbol):
+    dbd = r'F:\Database\5min_data'
+    db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
+    symbol_check = {'3MINDIA': 'MINDIA',
+                    'BAJAJ-AUTO': 'BAJAJAUTO',
+                    'J&KBANK': 'JKBANK',
+                    'L&TFH': 'LTFH',
+                    'M&MFIN': 'MMFIN',
+                    'M&M': 'MM',
+                    'NAM-INDIA': 'NAMINDIA',
+                    'MCDOWELL-N': 'MCDOWELLN'}
+    symbol = symbol[:-3]
+    if symbol in list(symbol_check.keys()):
+        symbol = symbol_check[symbol]
+
+    df = pd.read_sql('''SELECT * FROM %s;''' % symbol, con=db)
+    df.set_index('time', inplace=True)
+    df.reset_index(inplace=True)
+    df['time'] = pd.to_datetime(df['time'])
+    df.set_index("time", drop=True, inplace=True)
+    df.index[0]
+    df.drop(["oi", 'Volume'], axis=1, inplace=True)
+    db.close()
+    return df
+
+
+def get_dates(symbol):
+    dbd = r'F:\Database\60min_data'
+    db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
+    symbol_check = {'3MINDIA': 'MINDIA',
+                    'BAJAJ-AUTO': 'BAJAJAUTO',
+                    'J&KBANK': 'JKBANK',
+                    'L&TFH': 'LTFH',
+                    'M&MFIN': 'MMFIN',
+                    'M&M': 'MM',
+                    'NAM-INDIA': 'NAMINDIA',
+                    'MCDOWELL-N': 'MCDOWELLN'}
+    symbol = symbol[:-3]
+    if symbol in list(symbol_check.keys()):
+        symbol = symbol_check[symbol]
+
+    df = pd.read_sql('''SELECT * FROM %s;''' % symbol, con=db)
+    df.set_index('time', inplace=True)
+    df.reset_index(inplace=True)
+    df['time'] = pd.to_datetime(df['time'])
+    df.set_index("time", drop=True, inplace=True)
+    df.index[0]
+    df.drop(["oi", 'Volume'], axis=1, inplace=True)
+    db.close()
+    return df
+
+
+# def get_intra_data(symbol, tp):
+#     daily = yf.download(tickers=symbol, interval="5m", period=f"{str(tp)}d")
+#     daily.index = daily.index.tz_localize(None)
+#     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
+#     return daily
+
 #
-#     df = pd.read_sql('''SELECT * FROM %s;''' % symbol, con=db)
-#     df.set_index('time', inplace=True)
-#     df.reset_index(inplace=True)
-#     df['time'] = pd.to_datetime(df['time'])
-#     df.set_index("time", drop=True, inplace=True)
-#     df.index[0]
-#     df.drop(["oi", 'Volume'], axis=1, inplace=True)
-#     return df
-
-
-def get_intra_data(symbol, tp):
-    daily = yf.download(tickers=symbol, interval="5m", period=f"{str(tp)}d")
-    daily.index = daily.index.tz_localize(None)
-    daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
-    return daily
-
-
-def get_dates(symbol, tp):
-    daily = yf.download(tickers=symbol, interval="60m", period=f"{str(tp)}d")
-    daily.index = daily.index.tz_localize(None)
-    daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
-    return daily
+# def get_dates(symbol, tp):
+#     daily = yf.download(tickers=symbol, interval="60m", period=f"{str(tp)}d")
+#     daily.index = daily.index.tz_localize(None)
+#     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
+#     return daily
 
 
 def get_peaks(today):
@@ -90,16 +118,20 @@ def get_today(df, date):
 def main(symbol):
     # symbol = "SBIN.NS"
     backtest_tp = 60
-    df_5min = get_intra_data(symbol, backtest_tp)
-    df_hour = get_dates(symbol, backtest_tp)
+    df_5min = get_intra_data(symbol)
+    df_hour = get_dates(symbol)
     df_hour['ema21'] = TA.EMA(df_hour, period=21)
     df_hour['ema8'] = TA.EMA(df_hour, period=8)
     df_hour = df_hour.iloc[21:, :].copy()
     df_hour['signal'] = [
         1 if df_hour.loc[e, 'ema8'] - df_hour.loc[e, 'ema21'] > 0 and df_hour.loc[e, 'Close'] > df_hour.loc[
             e, 'ema8'] else 0 for e in df_hour.index]
+    df_hour = df_hour.loc[max(df_5min.index[0],df_hour.index[0]):min(df_5min.index[-1],df_hour.index[-1]),:].copy()
+    df_5min = df_5min.loc[max(df_5min.index[0],df_hour.index[0]):min(df_5min.index[-1],df_hour.index[-1]),:].copy()
+
+
     df_5min = pd.concat([df_5min, df_hour['signal']], axis=1)
-    df_5min = df_5min.ffill()
+    df_5min['signal'] = df_5min['signal'].ffill()
     df_5min.dropna(inplace=True)
     port = BuyPortfolio(symbol)
 
@@ -186,7 +218,7 @@ tickers = ['ADANIPORTS.NS',
            'ULTRACEMCO.NS',
            'UPL.NS',
            'WIPRO.NS']
-# tickers = tickers[:10]
+# tickers = tickers[2:3]
 for symbol in tickers:
     main(symbol)
 
