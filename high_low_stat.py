@@ -2,12 +2,16 @@ import numpy as np
 import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
-from Portfolio2 import Combine, Store_Data
+from Portfolio2 import BuyPortfolio, Store_Data
 # import os
 # import sqlite3
-# import pandas as pd
+import pandas as pd
 import datetime as dt
+from finta import TA
+
 plt.ioff()
+
+
 #
 # dbd = r'F:\Database\1min_data'
 # db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
@@ -36,15 +40,15 @@ plt.ioff()
 #     return df
 
 
-def get_intra_data(symbol):
-    daily = yf.download(tickers=symbol, interval="5m", period="20d")
+def get_intra_data(symbol,tp):
+    daily = yf.download(tickers=symbol, interval="5m", period=f"{str(tp)}d")
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
     return daily
 
 
-def get_dates(symbol):
-    daily = yf.download(tickers=symbol, interval="1d", period="20d")
+def get_dates(symbol,tp):
+    daily = yf.download(tickers=symbol, interval="60m", period=f"{str(tp)}d")
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
     return daily
@@ -82,43 +86,51 @@ def get_plot(y1, y2, peaks1, peaks2, df):
 def get_today(df, symbol, date):
     return df[df.index.date == date]
 
+def main(symbol) :
+    # symbol = "SBIN.NS"
+    backtest_tp = 34
+    df_5min = get_intra_data(symbol,backtest_tp)
+    df_hour = get_dates(symbol,backtest_tp)
+    df_hour['ema21'] = TA.EMA(df_hour,period=21)
+    df_hour['ema8'] = TA.EMA(df_hour,period=8)
+    df_hour = df_hour.iloc[21:,:].copy()
+    df_hour['signal'] = [1 if df_hour.loc[e,'ema8'] - df_hour.loc[e,'ema21'] > 0 and df_hour.loc[e,'Close'] > df_hour.loc[e,'ema8'] else 0 for e in df_hour.index]
+    df_5min = pd.concat([df_5min, df_hour['signal']], axis = 1)
+    df_5min = df_5min.ffill()
+    df_5min.dropna(inplace=True)
+    port = BuyPortfolio(symbol)
 
-def main(symbol):
-    df = get_intra_data(symbol)
-    t = get_dates(symbol)
-    dates = t.index
-    port = Combine(symbol)
+    dates = sorted(list(set(df_hour.index.date)))
     for date in dates:
-        today = get_today(df, symbol, date.date())
-        num = 0
+        today = get_today(df_5min,symbol,date)
         for e in today.index:
             if e == today.index[0]: continue
             y1, y2, peaks1, peaks2 = get_peaks(today.loc[:e, ])
             if len(peaks1) == 0 or len(peaks2) == 0: continue
-            if today.loc[e, 'High'] > y1[peaks1[-1]] and (port.check_pos() == 0 or port.check_pos() == -1):
+
+            if today.loc[e,'signal'] == 1 and today.loc[e, 'High'] > y1[peaks1[-1]] and port.check_pos() == 0:
                 port.buy(y1[peaks1[-1]], e)
-                num = num + 1
-            elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and (port.check_pos() == 0 or port.check_pos() == 1):
-                port.sell(y2[peaks2[-1]] * -1, e)
-                num = num + 1
-            if e.time() == dt.datetime(2020,2,2,15,25).time() and num%2 == 1:
-                if port.check_pos() == 1:
-                    port.sell(today.loc[e,'Open'], e)
-                elif port.check_pos() == -1:
-                    port.buy(today.loc[e,'Open'], e)
 
+            elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and port.check_pos() == 1:
+                port.square_off(y2[peaks2[-1]] * -1, e)
 
+            if port.check_pos() == 1 and e.time() == dt.datetime(2020,2,2,15,25).time():
+                port.square_off(today.loc[e,'Open'],e)
     port.generate_dataframes()
     store_result.append_data(port.generate_results())
-    store_result.day_wise_result(port.get_day_wise())
+    store_result.day_wise_result(port.get_day_wise().rename(columns={'%change':f"{symbol[:-3]}"}))
 
-    fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
-    plt.plot(port.percent_df['cumprod'], 'bo-')
-    plt.xticks(rotation=45)
-    plt.xlabel('Date-time', fontsize=18)
-    plt.ylabel('Cumulative % change', fontsize=16)
-    plt.savefig(f"./plot/{symbol[:-3]}.jpeg")
-    plt.close(fig)
+
+    # port.generate_csv_report()
+    # fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
+    # plt.plot(port.percent_df['cumprod'], 'bo-')
+    # plt.xticks(rotation=45)
+    # plt.xlabel('Date-time', fontsize=18)
+    # plt.ylabel('Cumulative % change', fontsize=16)
+    # plt.savefig(f"./plot/{symbol[:-3]}.jpeg")
+    # plt.close(fig)
+
+
 
 store_result = Store_Data()
 
@@ -171,9 +183,12 @@ tickers = ['ADANIPORTS.NS',
            'ULTRACEMCO.NS',
            'UPL.NS',
            'WIPRO.NS']
-# tickers = tickers[:10]
+symbol = tickers[1]
 for symbol in tickers:
     main(symbol)
 
-result, day_wise = store_result.gen_pd()  ## dont run it twice
+result, day_wise = store_result.gen_pd()
 store_result.get_csv()
+
+
+# store_result.day_wise

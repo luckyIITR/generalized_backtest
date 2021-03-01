@@ -11,18 +11,17 @@ class Store_Data:
         self.count = 0
 
     def append_data(self, result):
-        self.data.append(result)
+        self.data.append(result.copy())
 
     def day_wise_result(self,day_df):
-        self.count = self.count + 1
+        # self.count = self.count + 1
         if len(self.day_wise) == 0:
             self.day_wise = day_df
         else:
-            self.day_wise = self.day_wise.copy() + day_df
+            self.day_wise = pd.concat([self.day_wise.copy(),day_df.copy()],axis = 1)
 
     def gen_pd(self):
         self.df = pd.DataFrame(self.data.copy())
-        self.day_wise = self.day_wise/self.count
         return self.df, self.day_wise
 
     def get_csv(self):
@@ -267,12 +266,12 @@ class BuyPortfolio:
             dates = list(set(m))
             dates = sorted(dates)
             for date in dates:
-                t = self.percent_df[self.percent_df.index.date == date].sum()[0]
+                t = self.percent_df[self.percent_df.index.date == date].sum()[0].copy()
                 p_l.append(t)
             self.day_wise = pd.DataFrame.from_dict({"Time": dates, "%change": p_l}, orient='columns',
                                                    dtype=None, columns=None)
             self.day_wise.set_index("Time", drop=True, inplace=True)
-            self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
+            # self.day_wise['cumprod'] = ((self.day_wise['%change']/100 + 1).cumprod() - 1)*100
         else:
             print("First close open positions")
 
@@ -337,6 +336,9 @@ class BuyPortfolio:
         self.result['Max Loss'] = maxL
         self.result['Total return'] = totalR
         return self.result.copy()
+
+    def get_day_wise(self):
+        return self.day_wise
 
     def plot_result(self):
         plt.plot(self.percent_df['cumprod'])
@@ -491,6 +493,9 @@ class SellPortfolio:
         self.result['Max Loss'] = maxL
         self.result['Total return'] = totalR
         return self.result.copy()
+
+    def get_day_wise(self):
+        return self.day_wise
 
     def plot_result(self):
         plt.plot(self.percent_df['cumprod'])
