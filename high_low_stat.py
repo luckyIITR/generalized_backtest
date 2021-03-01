@@ -40,14 +40,14 @@ plt.ioff()
 #     return df
 
 
-def get_intra_data(symbol,tp):
+def get_intra_data(symbol, tp):
     daily = yf.download(tickers=symbol, interval="5m", period=f"{str(tp)}d")
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
     return daily
 
 
-def get_dates(symbol,tp):
+def get_dates(symbol, tp):
     daily = yf.download(tickers=symbol, interval="60m", period=f"{str(tp)}d")
     daily.index = daily.index.tz_localize(None)
     daily.drop(["Adj Close", 'Volume'], axis=1, inplace=True)
@@ -83,43 +83,47 @@ def get_plot(y1, y2, peaks1, peaks2, df):
         plt.hlines(y=x1, xmin=min(x), xmax=max(x), colors='green', ls=':', lw=1)
 
 
-def get_today(df, symbol, date):
+def get_today(df, date):
     return df[df.index.date == date]
 
-def main(symbol) :
+
+def main(symbol):
     # symbol = "SBIN.NS"
-    backtest_tp = 34
-    df_5min = get_intra_data(symbol,backtest_tp)
-    df_hour = get_dates(symbol,backtest_tp)
-    df_hour['ema21'] = TA.EMA(df_hour,period=21)
-    df_hour['ema8'] = TA.EMA(df_hour,period=8)
-    df_hour = df_hour.iloc[21:,:].copy()
-    df_hour['signal'] = [1 if df_hour.loc[e,'ema8'] - df_hour.loc[e,'ema21'] > 0 and df_hour.loc[e,'Close'] > df_hour.loc[e,'ema8'] else 0 for e in df_hour.index]
-    df_5min = pd.concat([df_5min, df_hour['signal']], axis = 1)
+    backtest_tp = 60
+    df_5min = get_intra_data(symbol, backtest_tp)
+    df_hour = get_dates(symbol, backtest_tp)
+    df_hour['ema21'] = TA.EMA(df_hour, period=21)
+    df_hour['ema8'] = TA.EMA(df_hour, period=8)
+    df_hour = df_hour.iloc[21:, :].copy()
+    df_hour['signal'] = [
+        1 if df_hour.loc[e, 'ema8'] - df_hour.loc[e, 'ema21'] > 0 and df_hour.loc[e, 'Close'] > df_hour.loc[
+            e, 'ema8'] else 0 for e in df_hour.index]
+    df_5min = pd.concat([df_5min, df_hour['signal']], axis=1)
     df_5min = df_5min.ffill()
     df_5min.dropna(inplace=True)
     port = BuyPortfolio(symbol)
 
     dates = sorted(list(set(df_hour.index.date)))
     for date in dates:
-        today = get_today(df_5min,symbol,date)
+        today = get_today(df_5min, date)
         for e in today.index:
-            if e == today.index[0]: continue
+            if e == today.index[0]:
+                continue
             y1, y2, peaks1, peaks2 = get_peaks(today.loc[:e, ])
-            if len(peaks1) == 0 or len(peaks2) == 0: continue
+            if len(peaks1) == 0 or len(peaks2) == 0:
+                continue
 
-            if today.loc[e,'signal'] == 1 and today.loc[e, 'High'] > y1[peaks1[-1]] and port.check_pos() == 0:
+            if today.loc[e, 'signal'] == 1 and today.loc[e, 'High'] > y1[peaks1[-1]] and port.check_pos() == 0:
                 port.buy(y1[peaks1[-1]], e)
 
             elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and port.check_pos() == 1:
                 port.square_off(y2[peaks2[-1]] * -1, e)
 
-            if port.check_pos() == 1 and e.time() == dt.datetime(2020,2,2,15,25).time():
-                port.square_off(today.loc[e,'Open'],e)
+            if port.check_pos() == 1 and e.time() == dt.datetime(2020, 2, 2, 15, 25).time():
+                port.square_off(today.loc[e, 'Open'], e)
     port.generate_dataframes()
     store_result.append_data(port.generate_results())
-    store_result.day_wise_result(port.get_day_wise().rename(columns={'%change':f"{symbol[:-3]}"}))
-
+    store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
 
     # port.generate_csv_report()
     # fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
@@ -129,7 +133,6 @@ def main(symbol) :
     # plt.ylabel('Cumulative % change', fontsize=16)
     # plt.savefig(f"./plot/{symbol[:-3]}.jpeg")
     # plt.close(fig)
-
 
 
 store_result = Store_Data()
@@ -183,12 +186,13 @@ tickers = ['ADANIPORTS.NS',
            'ULTRACEMCO.NS',
            'UPL.NS',
            'WIPRO.NS']
-symbol = tickers[1]
+# tickers = tickers[:10]
 for symbol in tickers:
     main(symbol)
 
-result, day_wise = store_result.gen_pd()
+result, day_wise = store_result.gen_pd(len(tickers))
 store_result.get_csv()
 
-
 # store_result.day_wise
+
+# t = ((day_wise / 100 + 1).cumprod() - 1) * 100

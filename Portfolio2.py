@@ -9,6 +9,7 @@ class Store_Data:
         self.df = pd.DataFrame()
         self.day_wise = pd.DataFrame()
         self.count = 0
+        self.t = pd.DataFrame()
 
     def append_data(self, result):
         self.data.append(result.copy())
@@ -20,14 +21,18 @@ class Store_Data:
         else:
             self.day_wise = pd.concat([self.day_wise.copy(),day_df.copy()],axis = 1)
 
-    def gen_pd(self):
+    def gen_pd(self,x):
         self.df = pd.DataFrame(self.data.copy())
-        return self.df, self.day_wise
+        self.day_wise.sort_index(axis =0,inplace = True)
+        self.day_wise.fillna(0, inplace=True)
+        self.t = ((self.day_wise / 100 + 1).cumprod() - 1) * 100
+        self.t['cumsum'] = self.t.sum(axis=1) / x
+        return self.df, self.t
 
     def get_csv(self):
         writer = pd.ExcelWriter( "Result.xlsx", engine='xlsxwriter')
         self.df.to_excel(writer, sheet_name='result')
-        self.day_wise.to_excel(writer, sheet_name="Day_wise")
+        self.t.to_excel(writer, sheet_name="Day_wise")
         writer.save()
 
 
