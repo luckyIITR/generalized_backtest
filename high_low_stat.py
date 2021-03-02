@@ -88,10 +88,10 @@ def get_today(df, date):
 
 
 def main(symbol):
-    # symbol = "SBIN.NS"
-    backtest_tp = 60
+    # symbol = "KOTAKBANK.NS"
+    backtest_tp = 1
     df_5min = get_intra_data(symbol, backtest_tp)
-    df_hour = get_dates(symbol, backtest_tp)
+    df_hour = get_dates(symbol, backtest_tp+5)
     df_hour['ema21'] = TA.EMA(df_hour, period=21)
     df_hour['ema8'] = TA.EMA(df_hour, period=8)
     df_hour = df_hour.iloc[21:, :].copy()
@@ -102,6 +102,10 @@ def main(symbol):
     df_5min = df_5min.ffill()
     df_5min.dropna(inplace=True)
     port = BuyPortfolio(symbol)
+
+    # y1, y2, peaks1, peaks2 = get_peaks(df_5min)
+    # get_plot(y1, y2, peaks1, peaks2, df_5min)
+    # plt.show()
 
     dates = sorted(list(set(df_hour.index.date)))
     for date in dates:
@@ -121,9 +125,10 @@ def main(symbol):
 
             if port.check_pos() == 1 and e.time() == dt.datetime(2020, 2, 2, 15, 25).time():
                 port.square_off(today.loc[e, 'Open'], e)
-    port.generate_dataframes()
-    store_result.append_data(port.generate_results())
-    store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
+    if len(port.order_book) != 0:
+        port.generate_dataframes()
+        store_result.append_data(port.generate_results())
+        store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
 
     # port.generate_csv_report()
     # fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
@@ -186,6 +191,24 @@ tickers = ['ADANIPORTS.NS',
            'ULTRACEMCO.NS',
            'UPL.NS',
            'WIPRO.NS']
+tickers = ["SBIN.NS", "COALINDIA.NS",'BHARTIARTL.NS','BPCL.NS','GRASIM.NS',
+           'HCLTECH.NS',
+           'HDFC.NS',
+           'HDFCBANK.NS',
+           'HDFCLIFE.NS',
+           'HEROMOTOCO.NS',
+           'HINDALCO.NS',
+           'HINDUNILVR.NS',
+           'ICICIBANK.NS',
+           'INDUSINDBK.NS',
+           'INFY.NS',
+           'IOC.NS',
+           'ITC.NS',
+           'JSWSTEEL.NS',
+           'KOTAKBANK.NS',
+           'LT.NS',
+           'M&M.NS']
+symbol = tickers[0]
 # tickers = tickers[:10]
 for symbol in tickers:
     main(symbol)
@@ -196,3 +219,12 @@ store_result.get_csv()
 # store_result.day_wise
 
 # t = ((day_wise / 100 + 1).cumprod() - 1) * 100
+
+
+# minu = dt.datetime.now().minute
+# hour = dt.datetime.now().hour
+# for i in range(6):
+#     if minu % 5 == 0:
+#         break
+#     minu = minu - i
+# df_5min = df_5min.loc[df_5min.index <= dt.datetime.combine(dt.datetime.now().date(), dt.time(hour, minu))]
