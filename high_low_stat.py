@@ -2,7 +2,7 @@ import numpy as np
 import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
-from Portfolio2 import BuyPortfolio, Store_Data
+from Portfolio2 import BuyPortfolio, Store_Data, SellPortfolio
 # import os
 # import sqlite3
 import pandas as pd
@@ -150,6 +150,8 @@ def main(symbol):
         port.generate_dataframes()
         store_result.append_data(port.generate_results())
         store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
+
+
     today = get_today(df_5min, date)
     df = today
     y1, y2, peaks1, peaks2 = get_peaks(today)
@@ -258,7 +260,9 @@ tickers = ['ADANIPORTS.NS',
            'TITAN.NS',
            'UPL.NS',
            'WIPRO.NS']
-symbol = tickers[1]
+symbol = tickers[3]
+
+
 
 for symbol in tickers:
     main(symbol)
@@ -274,3 +278,49 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
+
+def selllll(symbol):
+    # symbol = "SBIN.NS"
+    backtest_tp = 1
+    df_5min = get_intra_data(symbol, backtest_tp)
+    df_hour = get_dates(symbol, backtest_tp+5)
+    df_hour['ema21'] = TA.EMA(df_hour, period=21)
+    df_hour['ema8'] = TA.EMA(df_hour, period=8)
+    df_hour = df_hour.iloc[21:, :].copy()
+    df_hour['signal'] = [
+        1 if df_hour.loc[e, 'ema8'] - df_hour.loc[e, 'ema21'] < 0 and df_hour.loc[e, 'Close'] < df_hour.loc[
+            e, 'ema8'] else 0 for e in df_hour.index]
+    df_5min = pd.concat([df_5min, df_hour['signal']], axis=1)
+    df_5min = df_5min.ffill()
+    df_5min.dropna(inplace=True)
+    port = SellPortfolio(symbol)
+
+    dates = sorted(list(set(df_hour.index.date)))
+    for date in dates:
+        today = get_today(df_5min, date)
+        for e in today.index:
+            if e == today.index[0]:
+                continue
+            y1, y2, peaks1, peaks2 = get_peaks(today.loc[:e, ])
+            if len(peaks1) == 0 or len(peaks2) == 0:
+                continue
+
+            if today.loc[e, 'signal'] == 1 and today.loc[e, 'Low'] < y2[peaks2[-1]]*-1 and port.check_pos() == 0:
+                port.sell(y2[peaks2[-1]]*-1, e)
+
+            elif today.loc[e, 'High'] > y1[peaks1[-1]] and port.check_pos() == -1:
+                port.square_off(y1[peaks1[-1]], e)
+
+
+            if port.check_pos() == -1 and e.time() == dt.datetime(2020, 2, 2, 15, 25).time():
+                port.square_off(today.loc[e, 'Open'], e)
+    if len(port.order_book) != 0:
+        port.generate_dataframes()
+        store_result.append_data(port.generate_results())
+        store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
+
+
+    today = get_today(df_5min, date)
+    df = today
+    y1, y2, peaks1, peaks2 = get_peaks(today)
+    get_plot(y1, y2, peaks1, peaks2, today)
