@@ -2,7 +2,7 @@ import numpy as np
 # import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
-from Portfolio2 import BuyPortfolio, Store_Data
+from Portfolio2 import BuyPortfolio, Store_Data, SellPortfolio
 import os
 import sqlite3
 import pandas as pd
@@ -119,7 +119,11 @@ def main(symbol):
     # symbol = "SBIN.NS"
     backtest_tp = 60
     df_5min = get_intra_data(symbol)
+    df_5min = df_5min[df_5min.index.time <= dt.datetime(2020,2,2,15,15).time() ]
+    df_5min = df_5min[df_5min.index.time >= dt.datetime(2020,2,2,9,15).time() ]
     df_hour = get_dates(symbol)
+    df_hour = df_hour[df_hour.index.time <= dt.datetime(2020,2,2,15,15).time() ]
+    df_hour = df_hour[df_hour.index.time >= dt.datetime(2020,2,2,9,15).time() ]
     df_hour['ema21'] = TA.EMA(df_hour, period=21)
     df_hour['ema8'] = TA.EMA(df_hour, period=8)
     df_hour = df_hour.iloc[21:, :].copy()
@@ -136,8 +140,9 @@ def main(symbol):
     df_5min.dropna(inplace=True)
     # df_5min = df_5min[df_5min.index.time >= dt.datetime(2020,2,2,10,15).time()]
     port = BuyPortfolio(symbol)
-
-    dates = sorted(list(set(df_hour.index.date)))
+    df_5min = df_5min[df_5min.index.date >= dt.datetime(2020,2,5,0,0).date()]
+    df_5min = df_5min[df_5min.index.date <= dt.datetime(2020,11,24,0,0).date()]
+    dates = sorted(list(set(df_5min.index.date)))
     for date in dates:
         today = get_today(df_5min, date)
         for e in today.index:
@@ -172,16 +177,13 @@ def main(symbol):
 
 store_result = Store_Data()
 
-tickers = ['ADANIPORTS.NS',
-           'ASIANPAINT.NS',
+tickers = ['ASIANPAINT.NS',
            'AXISBANK.NS',
            'BAJAJ-AUTO.NS',
            'BAJAJFINSV.NS',
            'BAJFINANCE.NS',
            'BHARTIARTL.NS',
-           'BPCL.NS',
            'BRITANNIA.NS',
-           'CIPLA.NS',
            'COALINDIA.NS',
            'DIVISLAB.NS',
            'DRREDDY.NS',
@@ -189,12 +191,9 @@ tickers = ['ADANIPORTS.NS',
            'GAIL.NS',
            'GRASIM.NS',
            'HCLTECH.NS',
-           'HDFC.NS',
            'HDFCBANK.NS',
-           'HDFCLIFE.NS',
            'HEROMOTOCO.NS',
            'HINDALCO.NS',
-           'HINDUNILVR.NS',
            'ICICIBANK.NS',
            'INDUSINDBK.NS',
            'INFY.NS',
@@ -202,25 +201,19 @@ tickers = ['ADANIPORTS.NS',
            'ITC.NS',
            'JSWSTEEL.NS',
            'KOTAKBANK.NS',
-           'LT.NS',
-           'M&M.NS',
            'MARUTI.NS',
            'NESTLEIND.NS',
            'NTPC.NS',
            'ONGC.NS',
            'POWERGRID.NS',
            'RELIANCE.NS',
-           'SBILIFE.NS',
            'SBIN.NS',
            'SUNPHARMA.NS',
            'TATAMOTORS.NS',
            'TATASTEEL.NS',
            'TCS.NS',
            'TECHM.NS',
-           'TITAN.NS',
-           'ULTRACEMCO.NS',
-           'UPL.NS',
-           'WIPRO.NS']
+           'TITAN.NS']
 # tickers = tickers[2:3]
 for symbol in tickers:
     main(symbol)
@@ -231,3 +224,215 @@ store_result.get_csv()
 # store_result.day_wise
 
 # t = ((day_wise / 100 + 1).cumprod() - 1) * 100
+
+
+
+
+def sell(symbol):
+    # symbol = "SBIN.NS"
+    backtest_tp = 60
+    df_5min = get_intra_data(symbol)
+    df_5min = df_5min[df_5min.index.time <= dt.datetime(2020, 2, 2, 15, 15).time()]
+    df_5min = df_5min[df_5min.index.time >= dt.datetime(2020, 2, 2, 9, 15).time()]
+    df_hour = get_dates(symbol)
+    df_hour = df_hour[df_hour.index.time <= dt.datetime(2020, 2, 2, 15, 15).time()]
+    df_hour = df_hour[df_hour.index.time >= dt.datetime(2020, 2, 2, 9, 15).time()]
+    df_hour['ema21'] = TA.EMA(df_hour, period=21)
+    df_hour['ema8'] = TA.EMA(df_hour, period=8)
+    df_hour = df_hour.iloc[21:, :].copy()
+    df_hour['signal'] = [
+        1 if df_hour.loc[e, 'ema8'] - df_hour.loc[e, 'ema21'] < 0 and df_hour.loc[e, 'Close'] < df_hour.loc[
+            e, 'ema8'] else 0 for e in df_hour.index]
+    df_hour['signal'] = df_hour['signal'].shift(1)
+    df_hour = df_hour.loc[max(df_5min.index[0], df_hour.index[0]):min(df_5min.index[-1], df_hour.index[-1]), :].copy()
+    df_5min = df_5min.loc[max(df_5min.index[0], df_hour.index[0]):min(df_5min.index[-1], df_hour.index[-1]), :].copy()
+
+    df_5min = pd.concat([df_5min, df_hour['signal']], axis=1)
+    df_5min['signal'] = df_5min['signal'].ffill()
+    df_5min.dropna(inplace=True)
+    # df_5min = df_5min[df_5min.index.time >= dt.datetime(2020,2,2,10,15).time()]
+    port = SellPortfolio(symbol)
+    df_5min = df_5min[df_5min.index.date >= dt.datetime(2020, 2, 5, 0, 0).date()]
+    df_5min = df_5min[df_5min.index.date <= dt.datetime(2020, 11, 24, 0, 0).date()]
+    dates = sorted(list(set(df_5min.index.date)))
+    for date in dates:
+        today = get_today(df_5min, date)
+        for e in today.index:
+            if e == today.index[0]:
+                continue
+            y1, y2, peaks1, peaks2 = get_peaks(today.loc[:e, ])
+            if len(peaks1) == 0 or len(peaks2) == 0:
+                continue
+
+            if today.loc[e, 'signal'] == 1 and today.loc[e, 'Low'] < y2[peaks2[-1]]*-1 and port.check_pos() == 0:
+                port.sell(y2[peaks2[-1]]*-1, e)
+
+            elif today.loc[e, 'High'] > y1[peaks1[-1]] and port.check_pos() == -1:
+                port.square_off(y1[peaks1[-1]], e)
+
+
+            if port.check_pos() == -1 and e.time() == dt.datetime(2020, 2, 2, 15, 15).time():
+                port.square_off(today.loc[e, 'Open'], e)
+    port.generate_dataframes()
+    store_result.append_data(port.generate_results())
+    store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
+
+    # port.generate_csv_report()
+    fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
+    plt.plot(port.percent_df['cumprod'], 'bo-')
+    plt.suptitle(symbol, fontsize=12)
+    plt.xticks(rotation=45)
+    plt.xlabel('Date-time', fontsize=18)
+    plt.ylabel('Cumulative % change', fontsize=16)
+    plt.savefig(f"./plot/{symbol[:-3]}.jpeg")
+    plt.close(fig)
+
+store_result = Store_Data()
+
+# tickers = ['ADANIPORTS.NS',
+#            'ASIANPAINT.NS',
+#            'AXISBANK.NS',
+#            'BAJAJ-AUTO.NS',
+#            'BAJAJFINSV.NS',
+#            'BAJFINANCE.NS',
+#            'BHARTIARTL.NS',
+#            'BPCL.NS',
+#            'BRITANNIA.NS',
+#            'CIPLA.NS',
+#            'COALINDIA.NS',
+#            'DIVISLAB.NS',
+#            'DRREDDY.NS',
+#            'EICHERMOT.NS',
+#            'GAIL.NS',
+#            'GRASIM.NS',
+#            'HCLTECH.NS',
+#            'HDFC.NS',
+#            'HDFCBANK.NS',
+#            'HDFCLIFE.NS',
+#            'HEROMOTOCO.NS',
+#            'HINDALCO.NS',
+#            'HINDUNILVR.NS',
+#            'ICICIBANK.NS',
+#            'INDUSINDBK.NS',
+#            'INFY.NS',
+#            'IOC.NS',
+#            'ITC.NS',
+#            'JSWSTEEL.NS',
+#            'KOTAKBANK.NS',
+#            'LT.NS',
+#            'M&M.NS',
+#            'MARUTI.NS',
+#            'NESTLEIND.NS',
+#            'NTPC.NS',
+#            'ONGC.NS',
+#            'POWERGRID.NS',
+#            'RELIANCE.NS',
+#            'SBILIFE.NS',
+#            'SBIN.NS',
+#            'SUNPHARMA.NS',
+#            'TATAMOTORS.NS',
+#            'TATASTEEL.NS',
+#            'TCS.NS',
+#            'TECHM.NS',
+#            'TITAN.NS',
+#            'ULTRACEMCO.NS',
+#            'UPL.NS',
+#            'WIPRO.NS']
+
+
+symbol = tickers[1]
+
+tickers = ['ASIANPAINT.NS',
+           'BAJAJ-AUTO.NS',
+           'BAJAJFINSV.NS',
+           'BAJFINANCE.NS',
+           'BHARTIARTL.NS',
+           'CIPLA.NS',
+           'COALINDIA.NS',
+           'DIVISLAB.NS',
+           'EICHERMOT.NS',
+           'GAIL.NS',
+           'HDFCBANK.NS',
+           'HINDALCO.NS',
+           'HINDUNILVR.NS',
+           'INDUSINDBK.NS',
+           'IOC.NS',
+           'ITC.NS',
+           'JSWSTEEL.NS',
+           'KOTAKBANK.NS',
+           'LT.NS',
+           'MARUTI.NS',
+           'NESTLEIND.NS',
+           'NTPC.NS',
+           'ONGC.NS',
+           'POWERGRID.NS',
+           'RELIANCE.NS',
+           'SBIN.NS',
+           'SUNPHARMA.NS',
+           'TATAMOTORS.NS',
+           'TATASTEEL.NS']
+
+
+for symbol in tickers:
+    sell(symbol)
+
+result, day_wise = store_result.gen_pd(len(tickers))
+store_result.get_csv()
+
+
+
+
+
+
+
+
+
+# tickers = ['ADANIPORTS.NS',
+#            'ASIANPAINT.NS',
+#            'AXISBANK.NS',
+#            'BAJAJ-AUTO.NS',
+#            'BAJAJFINSV.NS',
+#            'BAJFINANCE.NS',
+#            'BHARTIARTL.NS',
+#            'BPCL.NS',
+#            'BRITANNIA.NS',
+#            'CIPLA.NS',
+#            'COALINDIA.NS',
+#            'DIVISLAB.NS',
+#            'DRREDDY.NS',
+#            'EICHERMOT.NS',
+#            'GAIL.NS',
+#            'GRASIM.NS',
+#            'HCLTECH.NS',
+#            'HDFC.NS',
+#            'HDFCBANK.NS',
+#            'HDFCLIFE.NS',
+#            'HEROMOTOCO.NS',
+#            'HINDALCO.NS',
+#            'HINDUNILVR.NS',
+#            'ICICIBANK.NS',
+#            'INDUSINDBK.NS',
+#            'INFY.NS',
+#            'IOC.NS',
+#            'ITC.NS',
+#            'JSWSTEEL.NS',
+#            'KOTAKBANK.NS',
+#            'LT.NS',
+#            'M&M.NS',
+#            'MARUTI.NS',
+#            'NESTLEIND.NS',
+#            'NTPC.NS',
+#            'ONGC.NS',
+#            'POWERGRID.NS',
+#            'RELIANCE.NS',
+#            'SBILIFE.NS',
+#            'SBIN.NS',
+#            'SUNPHARMA.NS',
+#            'TATAMOTORS.NS',
+#            'TATASTEEL.NS',
+#            'TCS.NS',
+#            'TECHM.NS',
+#            'TITAN.NS',
+#            'ULTRACEMCO.NS',
+#            'UPL.NS',
+#            'WIPRO.NS']

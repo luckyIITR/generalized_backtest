@@ -400,7 +400,7 @@ class SellPortfolio:
             self.post_dict['Signal'] = "BUY"
             self.post_dict['Price'] = bp
             self.post_dict['Pos'] = 0
-            pc = (self.order_book[-1]['Price'] / bp - 1)
+            pc = (bp / self.order_book[-1]['Price'] - 1)
             self.percent_change.append(pc * 100)
             self.post_dict['%change'] = pc * 100
             self.df_per_change.append({"Time": time, "%change": pc * 100})
