@@ -9,7 +9,7 @@ import pandas as pd
 import datetime as dt
 from finta import TA
 
-# plt.ioff()
+plt.ioff()
 
 
 #
@@ -17,7 +17,7 @@ from finta import TA
 #
 #
 def get_intra_data(symbol):
-    dbd = r'F:\Database\5min_data'
+    dbd = r'F:\Database\15min_data'
     db = sqlite3.connect(os.path.join(dbd, "NSEEQ.db"))
     symbol_check = {'3MINDIA': 'MINDIA',
                     'BAJAJ-AUTO': 'BAJAJAUTO',
@@ -153,20 +153,21 @@ def main(symbol):
             elif today.loc[e, 'Low'] < y2[peaks2[-1]] * -1 and port.check_pos() == 1:
                 port.square_off(y2[peaks2[-1]] * -1, e)
 
-            if port.check_pos() == 1 and e.time() == dt.datetime(2020, 2, 2, 15, 25).time():
+            if port.check_pos() == 1 and e.time() == dt.datetime(2020, 2, 2, 15, 15).time():
                 port.square_off(today.loc[e, 'Open'], e)
     port.generate_dataframes()
     store_result.append_data(port.generate_results())
     store_result.day_wise_result(port.get_day_wise().rename(columns={'%change': f"{symbol[:-3]}"}))
 
     # port.generate_csv_report()
-    # fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
-    # plt.plot(port.percent_df['cumprod'], 'bo-')
-    # plt.xticks(rotation=45)
-    # plt.xlabel('Date-time', fontsize=18)
-    # plt.ylabel('Cumulative % change', fontsize=16)
-    # plt.savefig(f"./plot/{symbol[:-3]}.jpeg")
-    # plt.close(fig)
+    fig = plt.figure(num=None, figsize=(16, 12), dpi=160, facecolor='w', edgecolor='k')
+    plt.plot(port.percent_df['cumprod'], 'bo-')
+    plt.suptitle(symbol, fontsize=12)
+    plt.xticks(rotation=45)
+    plt.xlabel('Date-time', fontsize=18)
+    plt.ylabel('Cumulative % change', fontsize=16)
+    plt.savefig(f"./plot/{symbol[:-3]}.jpeg")
+    plt.close(fig)
 
 
 store_result = Store_Data()
