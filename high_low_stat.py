@@ -1,5 +1,5 @@
 import numpy as np
-import yfinance as yf
+# import yfinance as yf
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from Portfolio2 import BuyPortfolio, Store_Data
@@ -9,7 +9,7 @@ import pandas as pd
 import datetime as dt
 from finta import TA
 
-plt.ioff()
+# plt.ioff()
 
 
 #
@@ -126,6 +126,7 @@ def main(symbol):
     df_hour['signal'] = [
         1 if df_hour.loc[e, 'ema8'] - df_hour.loc[e, 'ema21'] > 0 and df_hour.loc[e, 'Close'] > df_hour.loc[
             e, 'ema8'] else 0 for e in df_hour.index]
+    df_hour['signal'] = df_hour['signal'].shift(1)
     df_hour = df_hour.loc[max(df_5min.index[0],df_hour.index[0]):min(df_5min.index[-1],df_hour.index[-1]),:].copy()
     df_5min = df_5min.loc[max(df_5min.index[0],df_hour.index[0]):min(df_5min.index[-1],df_hour.index[-1]),:].copy()
 
@@ -133,6 +134,7 @@ def main(symbol):
     df_5min = pd.concat([df_5min, df_hour['signal']], axis=1)
     df_5min['signal'] = df_5min['signal'].ffill()
     df_5min.dropna(inplace=True)
+    df_5min = df_5min[df_5min.index.time >= dt.datetime(2020,2,2,10,15).time()]
     port = BuyPortfolio(symbol)
 
     dates = sorted(list(set(df_hour.index.date)))
