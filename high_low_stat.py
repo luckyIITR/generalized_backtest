@@ -134,7 +134,7 @@ def main(symbol):
     df_5min = pd.concat([df_5min, df_hour['signal']], axis=1)
     df_5min['signal'] = df_5min['signal'].ffill()
     df_5min.dropna(inplace=True)
-    df_5min = df_5min[df_5min.index.time >= dt.datetime(2020,2,2,10,15).time()]
+    # df_5min = df_5min[df_5min.index.time >= dt.datetime(2020,2,2,10,15).time()]
     port = BuyPortfolio(symbol)
 
     dates = sorted(list(set(df_hour.index.date)))
